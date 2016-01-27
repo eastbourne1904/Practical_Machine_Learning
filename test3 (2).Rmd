@@ -1,0 +1,25 @@
+---
+title: "test3"
+output: html_document
+---
+
+### Could not get to work 
+##### https://rpubs.com/jocaqui/26619 - DOES NOT WORK
+
+```{r}
+pmlTrain<-read.csv("pml-training.csv", header=T, na.strings=c("NA", "#DIV/0!"))
+pmlTest<-read.csv("pml-testing.csv", header=T, na.string=c("NA", "#DIV/0!"))
+```
+
+```{r}
+## NA exclusion for all available variables
+noNApmlTrain<-pmlTrain[, apply(pmlTrain, 2, function(x) !any(is.na(x)))] 
+dim(noNA{rpmlTrain)
+```
+
+```{r, stalls_here}
+## variables with user information, time and undefined
+cleanpmlTrain<-noNApmlTrain[,-c(1:8)]
+dim(cleanpmlTrain)
+```
+

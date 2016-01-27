@@ -1,0 +1,23 @@
+---
+title: "test1c"
+output: html_document
+---
+# https://rpubs.com/DiMach/pml
+
+```{r}
+D <- read.csv("pml-training.csv")
+DTest <- read.csv("pml-testing.csv")
+```
+
+```{r}
+isAnyMissing <- sapply(DTest, function (x) any(is.na(x) | x == ""))
+isPredictor <- !isAnyMissing & grepl("belt|[^(fore)]arm|dumbbell|forearm", names(isAnyMissing))
+predCandidates <- names(isAnyMissing)[isPredictor]
+predCandidates
+```
+
+```{r}
+varToInclude <- c("classe", predCandidates)
+D <- D[, varToInclude, with=FALSE]
+dim(D)
+```

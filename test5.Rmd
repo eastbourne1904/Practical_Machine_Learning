@@ -1,0 +1,38 @@
+---
+title: "test5"
+output: html_document
+---
+
+# https://github.com/djamelz/Coursera-PracticalMachineLearning
+
+```{r}
+library(caret)
+library(randomForest)
+library(doParallel)
+library(randomForest)
+set.seed(4356)
+
+data <- read.csv("pml-training.csv", na.strings=c("#DIV/0!") )
+```
+```{r}
+cData <- data
+for(i in c(8:ncol(cData)-1)) {cData[,i] = as.numeric(as.character(cData[,i]))}
+# This causes many warnings: NAs introduced by coercion
+```
+```{r}
+featuresnames <- colnames(cData[colSums(is.na(cData)) == 0])[-(1:7)]
+features <- cData[featuresnames]
+```
+```{r}
+xdata <- createDataPartition(y=features$classe, p=3/4, list=FALSE )
+training <- features[xdata,]
+testing <- features[-xdata,]
+```
+```{r}
+registerDoParallel()
+model <- foreach(ntree=rep(150, 4), .combine=randomForest::combine) randomForest(training[-ncol(training)], training$classe, ntree=ntree)
+```
+```{r}
+predictionsTr <- predict(model, newdata=training)
+confusionMatrix(predictionsTr,training$classe)
+```

@@ -1,0 +1,120 @@
+---
+title: "Practical Machine Learning - Course Project"
+author: "Alasdair Hazen"
+output: html_document
+---
+
+#Executive Summary  
+
+Six subject participated in a study of exercising with dumbells. The experiment examines, not the quantity, but the manner in which they performed the exercise. There were five manners in which the subjects could do the exercise. (A) exactly to the specification, (B) throwing the elbows to the front, (C) lifting the dumbell only halfway, (D) lowering the dumbbell only halfway, and (E) throwing the hips to the front. The goal of this project is to analyse the data and predict which manner they performed the exercise based on the data. For this we will construct several models and select the best one according to accuracy.  
+
+#Question  
+By analysing the data from accelerometers on the belt, forearm, arm, and dumbell using an algorithm, can the appropriate activity quality class be predicted?  
+
+#Input Data  
+1. Set libraries 
+    + caret 
+    + rattle
+    + rpart
+    + randomForest
+2. Download data
+3. Read data into datasets
+4. Drop unnecessary columns
+    + NAs
+    + blanks
+    + errors
+6. Split testing data into smaller group(s) to build a model and test the model
+
+```{r set_libraries, error=FALSE, message=FALSE,warning=FALSE}
+# Check packages are installed
+# any(grepl("caret", installed.packages()))
+# any(grepl("rattle", installed.packages()))
+# any(grepl("rpart", installed.packages()))
+# any(grepl("rpart.plot", installed.packages()))
+# any(grepl("randomForest", installed.packages()))
+
+# Set libraries
+library(caret)
+library(rattle)
+library(rpart)
+library(rpart.plot)
+library(randomForest)
+```
+```{r download_data}
+# Download data
+if (!file.exists("pml-training.csv")) {     
+  download.file("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", 
+                destfile = "pml-training.csv") 
+} 
+
+if (!file.exists("pml-testing.csv")) {     
+  download.file("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", 
+                destfile = "pml-testing.csv") 
+} 
+```  
+```{r read_data_into_datasets}
+# Read data into datasets
+pmlTrainingData <- read.csv("pml-training.csv", na.strings=c("NA",""), header=TRUE)
+pmlTestingData <- read.csv("pml-testing.csv", na.strings=c("NA",""), header=TRUE)
+```
+```{r pre_drop,echo=FALSE, error=FALSE, message=FALSE,warning=FALSE, results='hide'}
+ctn <- colnames(pmlTrainingData)
+cts <- colnames(pmlTestingData)
+all.equal(ctn[1:length(ctn)-1], cts[1:length(ctn)-1])
+cna <- function(x) {as.vector(apply(x, 2, function(x) length(which(!is.na(x)))))}
+ccnt <- cna(pmlTrainingData)
+drop <- c()
+for (cnt in 1:length(ccnt)) {if (ccnt[cnt] < nrow(pmlTrainingData)) {drop <- c(drop, ctn[cnt])}}
+```
+```{r drop_unnecessary_columns}
+# Drop unnecessary columns
+pmlTrainingData <- pmlTrainingData[,!(names(pmlTrainingData) %in% drop)]
+pmlTrainingData <- pmlTrainingData[,8:length(colnames(pmlTrainingData))]
+
+pmlTestingData <- pmlTestingData[,!(names(pmlTestingData) %in% drop)]
+pmlTestingData <- pmlTestingData[,8:length(colnames(pmlTestingData))]
+```  
+
+We will do a quick check that our testing data and our training data columns are the same.  
+
+```{r check_column_names}
+# Show remaining columns.
+colnames(pmlTrainingData)
+colnames(pmlTestingData)
+```  
+
+Here we can see that the last column differes.  In Training data the last column is classe, whereas in Testing data the column is problem_id.  We will need to adjust for this.  
+
+There are several ways we can partition the data. We can use folds, partitions, etc. and a variety of variations and combinations.  However, after 16 tries I have decided that the simplest 60/40 partition is just as effective as a more complicated derivative.  
+
+```{r sample}
+iris <- pmlTrainingData
+head(iris)
+str(iris)
+table(iris$classe)
+round(prop.table(table(iris$classe)) * 100, digits = 1)
+summary(iris)
+library(class)
+
+normalize <- function(x) {
+num <- x - min(x)
+denom <- max(x) - min(x)
+return (num/denom)
+}
+
+iris_norm <- as.data.frame(lapply(iris[1:4], normalize))
+summary(iris_norm)
+
+set.seed(1234)
+ind <- sample(2, nrow(iris), replace=TRUE, prob=c(0.67, 0.33))
+
+iris.training <- iris[ind==1, 1:4]
+iris.test <- iris[ind==2, 1:4]
+
+iris.trainLabels <- iris[ind==1, 5]
+iris.testLabels <- iris[ind==2, 5]
+
+iris_pred <- knn(train = iris.training, test = iris.test, cl = iris.trainLabels, k=3)
+
+
+```

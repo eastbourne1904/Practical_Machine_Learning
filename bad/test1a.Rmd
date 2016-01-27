@@ -1,0 +1,40 @@
+---
+output: pdf_document
+---
+\textbf{\Large How well subjects did in bar bell lifts}
+
+\Large Executive Summary  
+bla bla bla...
+
+\Large Data  
+\normalsize Import Data from download cvs or from website link
+
+```{r import_data, echo=TRUE}
+if (!file.exists("pml-training.csv")) {
+  download.file("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", 
+                destfile = "pml-training.csv")
+}
+if (!file.exists("pml-testing.csv")) {
+  download.file("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", 
+                destfile = "pml-testing.csv")
+}
+```  
+
+\normalsize Read in Data
+
+```{r read_data, echo=TRUE}
+pmlTraining <- read.csv("pml-training.csv", header = TRUE, sep = ",",na.strings=c("#DIV/0!"))
+pmlTesting <- read.csv("pml-testing.csv", header = TRUE, sep = ",",na.strings=c("#DIV/0!"))
+# View(pmlTraining)
+pmlTraining[ pmlTraining == '' | pmlTraining == 'NA'] <- NA
+```  
+
+\normalsize Clean Data 
+
+Reviewing the data we find three things we need to adjust
+\begin{itemize}
+\item NA values
+\item Missing values, which we deall with by turning them into NA above
+\item Error Expressions, which we handle on import via na.strings  
+\end{itemize}
+

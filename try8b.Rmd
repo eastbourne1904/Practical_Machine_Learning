@@ -1,0 +1,60 @@
+---
+title: "try8b"
+output: html_document
+---
+```{r check_libraries,echo=FALSE}
+library(caret)
+library(randomForest)
+library(foreach)
+library(doParallel)
+library(rpart)
+library(rattle)
+
+set.seed(1979)
+options(warn=-1)
+
+pmlTrainingSet <- read.csv("pml-training.csv", header = TRUE, sep = ",",na.strings=c('NA','','#DIV/0!'))
+```
+
+```{r}
+# Convert columns 8 to end -classe column to numeric
+for(i in c(8:ncol(pmlTrainingSet)-1)){
+  pmlTrainingSet[,i]=as.numeric(as.character((pmlTrainingSet[,i])))}
+
+feature_set <- colnames(pmlTrainingSet[colSums(is.na(pmlTrainingSet)) == 0])[-(1:7)]
+
+model_data <- pmlTrainingSet[feature_set]
+feature_set
+```
+```{r}             
+inTrain <- createDataPartition(y=pmlTrainingSet$classe, p=0.6, list=FALSE )
+training <- model_data[inTrain,]
+testing <- model_data[-inTrain,]
+dim(training)
+dim(testing)
+```
+
+```{r compare_training_types}
+# rt
+# rpart
+modFit <- train(classe ~ .,method="rpart",data=training)
+print(modFit$finalModel)
+```
+
+``````{r compare_training_types_rpart}
+# rpart
+rpart_model <- train(classe ~ .,method="rpart",data=training)
+print(rpart_model$finalModel)
+fancyRpartPlot(rpart_model$finalModel)
+```
+```{r compare_training_types_rf}
+# rf (randomForest)
+x <- training[-ncol(training)]
+y <- training$classe
+
+rf_model <- foreach(ntree=rep(150, 6), .combine=randomForest::combine, .packages='randomForest') %dopar% {
+  randomForest(x, y, ntree=ntree)
+}
+rf_predict <- predict(rf_model, newdata=training)
+confusionMatrix(rf_predict,training$classe)
+```

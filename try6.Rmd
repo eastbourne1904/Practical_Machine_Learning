@@ -1,0 +1,46 @@
+---
+title: "try6"
+output: html_document
+---
+
+```{r}
+library(caret)
+library(randomForest)
+library(foreach)
+library(doParallel)
+
+set.seed(2048)
+options(warn=-1)
+```
+
+```{r load_data}
+pmlTrainingSet <- read.csv("pml-training.csv", header = TRUE, sep = ",",na.strings=c('NA','','#DIV/0!'))
+```
+
+```{r}
+for(i in c(8:ncol(pmlTrainingSet)-1)){pmlTrainingSet[,i]=as.numeric(as.character((pmlTrainingSet[,i])))}
+
+feature_set <- colnames(pmlTrainingSet[colSums(is.na(pmlTrainingSet)) == 0])[-(1:7)]
+model_data <- pmlTrainingSet[feature_set]
+
+feature_set
+```
+```{r partition_data}
+idx <- createDataPartition(y=pmlTrainingSet$classe, p=0.75, list=FALSE )
+training <- model_data[idx,]
+testing <- model_data[-idx,]
+
+x <- training[-ncol(training)]
+y <- training$classe
+```
+
+```{r prediction1}
+rf <- foreach(ntree=rep(150, 6), .combine=randomForest::combine, .packages='randomForest') %dopar% {randomForest(x, y, ntree=ntree)}
+predictions1 <- predict(rf, newdata=training)
+confusionMatrix(predictions1,training$classe)
+```
+
+```{r prediction2}
+predictions2 <- predict(rf, newdata=testing)
+confusionMatrix(predictions2,testing$classe)
+```

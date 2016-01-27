@@ -1,0 +1,86 @@
+---
+title: "try4"
+output: html_document
+---
+
+Synopsis:  This exercise will quantify how well six subjects did in areas taken from accelerometers on the belt, forearm, arm and dumbell by using a model to predict the manner in which the subjects did the exercise.  
+
+```{r data_import, echo=FALSE}
+if (!file.exists("pml-training.csv")) {
+  download.file("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", 
+                destfile = "pml-training.csv")
+}
+if (!file.exists("pml-testing.csv")) {
+  download.file("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", 
+                destfile = "pml-testing.csv")
+}
+```
+
+We read in the data whilst excluding NAs, blanks, and errors (#DIV/0!)  
+
+```{r read_data_without_NAs}
+pmlTrainingSet <- read.csv("pml-training.csv", header = TRUE, sep = ",",na.strings=c('NA','','#DIV/0!'))
+pmlTestingSet <- read.csv("pml-testing.csv", header = TRUE, sep = ",",na.strings=c('NA','','#DIV/0!'))
+```
+
+```{r check_libraries,echo=FALSE}
+# Check to see if all the packages that are needed are installed and loaded.
+# If they aren't installed and/or loaded, load them. As it is not part of the overall model, code will not be revealed here.
+require(caret)
+pkgTest <- function(x)
+{
+  if (!require(x,character.only = TRUE))
+  {
+    install.packages(x,dependencies = TRUE)
+       if(!require(x,character.only = TRUE)) stop("Package not found")
+  }
+}
+library(caret) 
+```
+
+We will set the seed and partition the training data into two groups. This will allow us to estimate the out-of-sample error and/or cross-validation a bit later.  
+
+```{r partition_pmlTrainingSet}
+# Set the seed for reproducibility
+set.seed(10)
+
+# We will split the training data into smaller parts (partition) so that we can create our model without having to touch the test data.
+#   We will set the probability to 90%, which should give us a 15% error rate
+inTrain <- createDataPartition(y=pmlTrainingSet$classe, p=0.9, list=FALSE) 
+pmlTrainingSet1 <- pmlTrainingSet[inTrain, ] 
+pmlTrainingSet2 <- pmlTrainingSet[-inTrain, ] # Whatever is left from pmlTrainingSet1
+dim(pmlTrainingSet1)
+```
+
+Now we want to exclude values that have mostly NAs (95% are NAs), which our initial function failed to catch. We only need to do this to our first training set, as we are setting asside training set 2 for our test.
+
+```{r rm_columns_with_mostlyNAs}
+naMeanGT95 <- sapply(pmlTrainingSet1, function(x) mean(is.na(x))) > 0.95 
+pmlTrainingSet1 <- pmlTrainingSet1[, naMeanGT95==F] 
+# pmlTrainingSet2 <- pmlTrainingSet2[, naMeanGT95==F] 
+```
+
+Now we want to remove variables with nearly zero variance.  
+
+```{r nearZeroVariation}
+nzv <- nearZeroVar(pmlTrainingSet1) 
+pmlTrainingSet1 <- pmlTrainingSet1[, -nzv] 
+#pmlTrainingSet2 <- pmlTrainingSet2[, -nzv] 
+```
+
+To further trimming our unnessesary data, we do a quick colnames() to see if there are columns that are not part of our sample set. We find the first seven columns do not contain data we will use. "X","user_name","raw_timestamp_part1", "raw_timestamp_part2", "cvtd_timestamp", "new_window", "num_window".  
+
+```{r remove_unnesessary_columns}
+pmlTrainingSet1 <- pmlTrainingSet1[, -(1:7)] 
+#pmlTrainingSet2 <- pmlTrainingSet2[, -(1:7)] 
+```
+
+
+```{r fit_model}
+fitControl <- trainControl(method="cv", number=3, verboseIter=F) 
+fit <- train(classe ~ ., data=pmlTrainingSet1, method="rf", trControl=fitControl) 
+fit$finalModel 
+preds <- predict(fit, newdata=pmlTrainingSet2) 
+head(preds,10)
+```
+

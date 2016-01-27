@@ -1,0 +1,39 @@
+---
+title: "test2"
+output: html_document
+---
+
+```{r}
+library(caret) 
+
+ptrain <- read.csv("pml-training.csv") 
+ptest <- read.csv("pml-testing.csv") 
+```
+```{r}
+set.seed(10) 
+inTrain <- createDataPartition(y=ptrain$classe, p=0.7, list=F) 
+ptrain1 <- ptrain[inTrain, ] 
+ptrain2 <- ptrain[-inTrain, ] 
+```
+
+```{r}
+nzv <- nearZeroVar(ptrain1) 
+ptrain1 <- ptrain1[, -nzv] 
+ptrain2 <- ptrain2[, -nzv] 
+```
+
+```{r}
+mostlyNA <- sapply(ptrain1, function(x) mean(is.na(x))) > 0.95 
+ptrain1 <- ptrain1[, mostlyNA==F] 
+ptrain2 <- ptrain2[, mostlyNA==F] 
+```
+
+```{r}
+ptrain1 <- ptrain1[, -(1:5)] 
+ptrain2 <- ptrain2[, -(1:5)] 
+```
+```{r}
+fitControl <- trainControl(method="cv", number=3, verboseIter=F) 
+fit <- train(classe ~ ., data=ptrain1, method="rf", trControl=fitControl) 
+fit$finalModel
+```

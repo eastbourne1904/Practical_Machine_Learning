@@ -1,0 +1,35 @@
+---
+title: "test7"
+output: html_document
+---
+
+# https://rpubs.com/DiMach/pml
+Read the testing data into a data table.  
+```{r}
+require(data.table)
+setInternet2(TRUE)
+D <- read.csv("pml-training.csv")
+DTest <- read.csv("pml-testing.csv")
+```
+Belt, arm, dumbbell, and forearm variables that do not have any missing values in the test dataset will be predictor candidates.
+```{r}
+isAnyMissing <- sapply(DTest, function (x) any(is.na(x) | x == ""))
+isPredictor <- !isAnyMissing & grepl("belt|[^(fore)]arm|dumbbell|forearm", names(isAnyMissing))
+predCandidates <- names(isAnyMissing)[isPredictor]
+predCandidates
+```
+Subset the primary dataset to include only the predictor candidates and the outcome variable, classe.  
+
+```{r}
+varToInclude <- c("classe", predCandidates)
+D <- D[, varToInclude]
+dim(D)
+```
+```{r}
+names(D)
+```
+Make classe into a factor.
+
+```{r}
+D <- D[, classe := factor(D[, classe])]
+```

@@ -1,0 +1,22 @@
+---
+title: "try9"
+author: "Alasdair Hazen"
+date: "January 25, 2016"
+output: html_document
+---
+```{r}
+library(data.table)
+D <- read.csv("pml-training.csv")
+isAnyMissing <- sapply(D, function (x) any(is.na(x) | x == ""))
+isPredictor <- !isAnyMissing & grepl("belt|[^(fore)]arm|dumbbell|forearm", names(isAnyMissing))
+predCandidates <- names(isAnyMissing)[isPredictor]
+predCandidates
+varToInclude <- c("classe", predCandidates)
+
+D <- D[, varToInclude]
+dim(D)
+names(D)
+```
+
+```{r}
+D <- D[, classe := factor(D[, classe])]

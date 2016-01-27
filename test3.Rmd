@@ -1,0 +1,104 @@
+---
+title: "test3"
+output: html_document
+---
+
+### Could not get to work  
+
+```{r}
+##################### function 1: 'lotOfNAs'
+
+# remove if na's appear on more than 90% of total cases
+lotOfNAs <- function(vector){
+    if(sum(is.na(vector))/length(vector) > 0.9){ # if vector is made of more than 90% NAs
+        res <- TRUE;                             # return true
+    }else{                                       # if it doesn't
+        res <- FALSE;                            # return false
+    }
+    invisible(res);                              # return the answer
+}
+##################### function 2: 'preProcessDataFrame'
+
+# function that receive a dataframe and perform its preprocessing
+preProcessDataFrame <- function(dataFrame){
+    
+    subsetTraining <- dataFrame[,-(1:7)]; # manually remove non significant values
+    
+    end <- ncol(subsetTraining)           # get end (class) index
+    
+                                   # convert everything but the class into numeric
+    subsetTraining[,-end] <- data.frame(sapply(subsetTraining[,-end],as.numeric))
+    
+                                   # verify which columns are made most of NAs
+    varsWith90NAs <- sapply(subsetTraining, lotOfNAs);
+                                   # remove these columns
+    subsetTraining <- subsetTraining[,!varsWith90NAs];
+    
+                    # detect variables who don't contribute for the classification
+    nzv <- nearZeroVar(subsetTraining[,-end],saveMetrics = TRUE)
+    subsetTraining <- subsetTraining[,!as.logical(nzv$nzv)]
+    
+    if(any(is.na(subsetTraining))){               # if there are any remaining NA's
+                                                  # imput these missing values
+        preProc <- preProcess(subsetTraining[,-end],method="bagImpute")
+        subsetTraining[,-end] <- predict(preProc,subsetTraining[,-end])
+        remove("preProc")                         # memory release    
+    }    
+    invisible(subsetTraining);
+}
+```
+
+```{r}
+library(caret)                              # import caret package
+## Loading required package: lattice
+## Loading required package: ggplot2
+set.seed(1234)                              # set random number generation seed
+                                            # read training data
+training <- read.csv("pml-training.csv");
+                                            #split into training and validation
+subsetTrainingIndex <- createDataPartition(training$classe, p=0.99, list = FALSE);
+subsetTraining <- training[subsetTrainingIndex,];
+                                            # preprocess dataframe
+subsetTraining <- preProcessDataFrame(subsetTraining);
+```
+
+```{r}
+# model fit using random forests
+trainPar <- trainControl(allowParallel = TRUE, method = "cv", number = 5);
+modelFit <- train(classe ~ ., data = subsetTraining, method="rf",
+                  trainControl = trainPar, importance=TRUE);
+```
+
+```{r}
+varImportance <- varImp(modelFit)
+## Loading required package: randomForest
+## randomForest 4.6-7
+## Type rfNews() to see new features/changes/bug fixes.
+```
+
+```{r}
+                                            # get independet set from the training set
+subsetTesting <- training[-subsetTrainingIndex,];
+                                            # preprocess it to get a tidy dataset
+subsetTesting <- preProcessDataFrame(subsetTesting);
+                                            # make a subset of size 50   
+subsetTesting <- subsetTesting[sample(1:nrow(subsetTesting), 50),];
+                                            # evaluate the model
+errorMeasure <- confusionMatrix(subsetTesting$classe, predict(modelFit,subsetTesting));
+errorMeasure
+```
+
+```{r}
+outOfSampleError <- 1 - errorMeasure$overall[1];
+names(outOfSampleError) <- "Out of Sample Error"
+outOfSampleError
+```
+
+```{r}
+testingFinal <- read.csv("pml-testing.csv");
+testingFinal$classe <- 1:nrow(testingFinal);
+testingFinal <- preProcessDataFrame(testingFinal);
+
+predict(modelFit,testingFinal)
+predict
+```

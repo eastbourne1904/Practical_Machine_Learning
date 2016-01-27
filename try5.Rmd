@@ -1,0 +1,68 @@
+---
+title: "try5"
+output: html_document
+---
+
+```{r data_import, echo=FALSE}
+if (!file.exists("pml-training.csv")) {
+  download.file("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", 
+                destfile = "pml-training.csv")
+}
+if (!file.exists("pml-testing.csv")) {
+  download.file("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", 
+                destfile = "pml-testing.csv")
+}
+```
+
+```{r check_libraries,echo=FALSE}
+# Check to see if all the packages that are needed are installed and loaded.
+# If they aren't installed and/or loaded, load them. As it is not part of the overall model, code will not be revealed here.
+require(caret)
+require(rattle)
+require(randomForest)
+pkgTest <- function(x)
+{
+  if (!require(x,character.only = TRUE))
+  {
+    install.packages(x,dependencies = TRUE)
+       if(!require(x,character.only = TRUE)) stop("Package not found")
+  }
+}
+library(caret) 
+library(rattle)
+library(randomForest)
+```
+
+```{r read_in_data}
+pmlTraining <- read.csv("pml-training.csv")
+pmlTesting <- read.csv("pml-testing.csv")
+```
+
+```{r break_up_data_from_training}
+inTrain <- createDataPartition(y=pmlTraining$classe,p=0.7,list=FALSE)
+training <- pmlTraining[inTrain,]
+testing <- pmlTraining[-inTrain,]
+dim(training);dim(testing)
+```
+
+```{r train_data_using_rpart}
+modFit <- train(classe ~ .,method="rpart",data=training)
+print(modFit$finalModel)
+```
+
+```{r plot_classification_tree}
+plot(modFit$finalModel,uniform=TRUE, main="Classification Tree")
+text(modFit$finalModel,use.n=TRUE,all=TRUE,cex=.8)
+
+fancyRpartPlot(modFit$finalModel)   # shows a fancier version of plain rpart plot
+```
+
+```{r predict_new_values}
+predict(modFit,newdata=testing)    # predict new values
+```
+
+```{r random_forest}
+
+modFit <- train(classe~ .,data=training,method="rf",prox=TRUE)
+modFit
+```

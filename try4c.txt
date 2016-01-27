@@ -1,0 +1,72 @@
+---
+title: "try4c"
+output: html_document
+---
+
+T---
+title: "try4"
+output: html_document
+---
+
+Synopsis:  This exercise will quantify how well six subjects did in areas taken from accelerometers on the belt, forearm, arm and dumbell by using a model to predict the manner in which the subjects did the exercise.  
+
+Description of how model was built:
+
+Description of how cross validation is used:
+
+Expectation of the out-of-sample error:
+
+What were the reasons for the choices made?
+
+```{r data_import, echo=FALSE}
+if (!file.exists("pml-training.csv")) {
+  download.file("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", 
+                destfile = "pml-training.csv")
+}
+if (!file.exists("pml-testing.csv")) {
+  download.file("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", 
+                destfile = "pml-testing.csv")
+}
+```
+
+```{r read_data_without_NAs}
+pmlTrainingSet <- read.csv("pml-training.csv", header = TRUE, sep = ",",na.strings=c('NA','','#DIV/0!'))
+pmlTestingSet <- read.csv("pml-testing.csv", header = TRUE, sep = ",",na.strings=c('NA','','#DIV/0!'))
+```
+
+```{r check_libraries,echo=FALSE}
+# Check to see if all the packages that are needed are installed and loaded.
+# If they aren't installed and/or loaded, load them. As it is not part of the overall model, code will not be revealed here.
+require(caret)
+pkgTest <- function(x)
+{
+  if (!require(x,character.only = TRUE))
+  {
+    install.packages(x,dependencies = TRUE)
+       if(!require(x,character.only = TRUE)) stop("Package not found")
+  }
+}
+library(caret) 
+```
+
+```{r partition_pmlTrainingSet}
+# Set the seed for reproducibility
+set.seed(10)
+
+# We will split the training data into smaller parts (partition) so that we can create our model without having to touch the test data.
+#   We will set the probability to 90%, which should give us a 15% error rate
+inTrain <- createDataPartition(y=pmlTrainingSet$classe, p=0.75, list=FALSE) # 75% goes to training set and 25% goes to test set.
+training <- pmlTrainingSet[inTrain, ] # 75% (p=0.75) of data
+testing <- pmlTrainingSet[-inTrain, ] # The 25% left over that don't appear in training set
+dim(training)
+```
+
+```{r cross_validation}
+# split training set into smaller data sets for cross validation
+folds <- createFolds(y=pmlTrainingSet,k=10,list=TRUE, returnTrain=TRUE)
+sapply(folds,length)
+folds <- createFolds(y=pmlTrainingSet,k=10,list=TRUE, returnTrain=FALSE)
+sapply(folds,length)
+```
+
+

@@ -1,0 +1,202 @@
+---
+title: "Practical Machine Learning - Course Project"
+author: "Alasdair Hazen"
+output: html_document
+---
+
+#Executive Summary  
+
+Six subject participated in a study of exercising with dumbells. The experiment examines, not the quantity, but the manner in which they performed the exercise. There were five manners in which the subjects could do the exercise. (A) exactly to the specification, (B) throwing the elbows to the front, (C) lifting the dumbell only halfway, (D) lowering the dumbbell only halfway, and (E) throwing the hips to the front. The goal of this project is to analyse the data and predict which manner they performed the exercise based on the data. For this we will construct several models and select the best one according to accuracy.  
+
+#Question  
+By analysing the data from accelerometers on the belt, forearm, arm, and dumbell using an algorithm, can the appropriate activity quality class be predicted?  
+
+#Input Data  
+1. Set libraries 
+    + caret 
+    + rattle
+    + rpart
+    + randomForest
+    + class
+2. Download data
+3. Read data into datasets
+4. Drop unnecessary columns
+    + NAs
+    + blanks
+    + errors
+6. Split testing data into smaller group(s) to build a model and test the model
+
+```{r set_libraries, error=FALSE, message=FALSE,warning=FALSE}
+# Check packages are installed
+# any(grepl("caret", installed.packages()))
+# any(grepl("rattle", installed.packages()))
+# any(grepl("rpart", installed.packages()))
+# any(grepl("rpart.plot", installed.packages()))
+# any(grepl("randomForest", installed.packages()))
+
+# Set libraries
+library(caret)
+library(rattle)
+library(rpart)
+library(rpart.plot)
+library(randomForest)
+library(class)
+```
+```{r download_data}
+# Download data
+if (!file.exists("pml-training.csv")) {     
+  download.file("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv", 
+                destfile = "pml-training.csv") 
+} 
+
+if (!file.exists("pml-testing.csv")) {     
+  download.file("http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv", 
+                destfile = "pml-testing.csv") 
+} 
+```  
+```{r read_data_into_datasets}
+# Read data into datasets
+pmlTrainingData <- read.csv("pml-training.csv", na.strings=c("NA",""), header=TRUE)
+pmlTestingData <- read.csv("pml-testing.csv", na.strings=c("NA",""), header=TRUE)
+```
+```{r pre_drop,echo=FALSE, error=FALSE, message=FALSE,warning=FALSE, results='hide'}
+ctn <- colnames(pmlTrainingData)
+cts <- colnames(pmlTestingData)
+all.equal(ctn[1:length(ctn)-1], cts[1:length(ctn)-1])
+cna <- function(x) {as.vector(apply(x, 2, function(x) length(which(!is.na(x)))))}
+ccnt <- cna(pmlTrainingData)
+drop <- c()
+for (cnt in 1:length(ccnt)) {if (ccnt[cnt] < nrow(pmlTrainingData)) {drop <- c(drop, ctn[cnt])}}
+```
+```{r drop_unnecessary_columns}
+# Drop unnecessary columns
+pmlTrainingData <- pmlTrainingData[,!(names(pmlTrainingData) %in% drop)]
+pmlTrainingData <- pmlTrainingData[,8:length(colnames(pmlTrainingData))]
+
+pmlTestingData <- pmlTestingData[,!(names(pmlTestingData) %in% drop)]
+pmlTestingData <- pmlTestingData[,8:length(colnames(pmlTestingData))]
+```  
+
+We will do a quick check that our testing data and our training data columns are the same.  
+
+```{r check_column_names}
+# Show remaining columns.
+colnames(pmlTrainingData)
+colnames(pmlTestingData)
+# show classe
+table(pmlTrainingData$classe)
+# show probability
+round(prop.table(table(pmlTrainingData$classe)) * 100, digits = 1)
+```  
+
+Here we can see that the last column differes.  In Training data the last column is classe, whereas in Testing data the column is problem_id.  We will need to adjust for this.  
+
+There are several ways we can partition the data. We can use folds, partitions, etc. and a variety of variations and combinations.  However, after 16 tries I have decided that the simplest 60/40 partition is just as effective as a more complicated derivative.  
+
+```{r split_data_into_smaller_groups}
+# Divide each of these 4 sets into training (60%) and test (40%) sets.
+set.seed(1979)
+inTrain <- createDataPartition(y=pmlTrainingData$classe, p=0.6, list=FALSE)
+training <- pmlTrainingData[inTrain,]
+testing <- pmlTrainingData[-inTrain,]
+```
+
+#Features  
+1. Convert/Create covariates
+    + Covariates that have no variability (NearZeroVar)
+2. Check for overfitting
+
+```{r check_near_zero_variance}
+# Check NearZeroVar
+nzv <- nearZeroVar(pmlTrainingData, saveMetrics=TRUE)
+nzv
+```  
+
+Near zero variance showing all false shows our data is clean after we removed superfluous columns. No more cleaning is required. 
+
+#Algorithm  
+1. Cart Modeling via rpart
+2. classification tree with (method=rpart)
+3. Regression
+2. Random forest (method=rf)  
+
+```{r Cart_modeling_via_rpart}
+# grow tree
+fit <- rpart(classe ~ .,method="class",data=training)
+printcp(fit) # display the results
+# plot tree
+plotcp(fit) # visualize cross-validation results
+# summary(fit) # detailed summary of splits   (For testing only. Lengthy output)
+plot(fit, uniform=TRUE,
+   main="Classification Tree")
+text(fit, use.n=FALSE, all=TRUE, cex=.6)
+# prune the tree
+pfit<- prune(fit, cp= fit$testing[which.min(fit$testing[,"xerror"]),"CP"])
+# plot the pruned tree
+plot(pfit, uniform=TRUE,
+   main="Pruned Classification Tree")
+text(pfit, use.n=FALSE, all=TRUE, cex=.6)
+```
+
+#Parameters  
+1. cross-validation
+2. bootstrapping
+
+```{r Random_Forest_bootstrapped_trees}
+# Random Forest prediction of training data
+fit <- randomForest(classe ~ .,   data=training)
+print(fit) # view results
+importance(fit) # importance of each predictor
+```  
+
+Train Model  
+
+```{r train_model_multiple_methods}
+# Run rpart
+set.seed(1979)
+testModel <- train(training$classe ~ ., data = training, method="rpart")
+print(testModel, digits=3)
+print(testModel$finalModel, digits=3)
+fancyRpartPlot(testModel$finalModel)
+
+# Run with no extra features.
+predictions <- predict(testModel, newdata=testing)
+print(confusionMatrix(predictions, testing$classe), digits=4)
+
+# Train with only preprocessing.
+set.seed(1979)
+testModel1 <- train(training$classe ~ .,  preProcess=c("center", "scale"), data = training, method="rpart")
+print(testModel1, digits=3)
+
+# Train with only cross validation.
+set.seed(1979)
+testModel2 <- train(training$classe ~ .,  trControl=trainControl(method = "cv", number = 4), data = training, method="rpart")
+print(testModel, digits=3)
+
+# Train with both preprocessing and cross validation.
+set.seed(1979)
+testModel2 <- train(training$classe ~ .,  preProcess=c("center", "scale"), trControl=trainControl(method = "cv", number = 4), data = training, method="rpart")
+print(testModel, digits=3)
+
+# Train with only cross validation.
+set.seed(1979)
+testModel3 <- train(training$classe ~ ., method="rf", trControl=trainControl(method = "cv", number = 4), data=training)
+print(testModel3, digits=3)
+```
+
+#Evaluation  
+
+Now that we've made our model, we put our subset test data into model.  
+
+```{r run_test_on_model}
+# Run against testModel3.
+predictions <- predict(testModel3, newdata=testing)
+print(confusionMatrix(predictions, testing$classe), digits=4)
+
+# Run against 20 testing set provided by Professor Leek.
+print(predict(testModel3, newdata=pmlTestingData))
+
+```
+
+#Conclusion  
+While a model based on Random Forest is slow and uses more processing time, the accuracy jumps from approximately 50% to over 95%, demonstrating that this is a better predictor.
